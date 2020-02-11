@@ -1,0 +1,12 @@
+
+#!/bin/bash
+# ziehe jeden Logeintrag für jeweils jede Query aus dem log file (logeintrag: <queryname> <Ausführungszeit>), entferne mit sed die "ms" und ersetze "." mit ",", damit Excel die Werte als #Fließkomma zahlen erkennt, speichere die Daten zu einem Algorithmus in eienr Datei
+for i in  Serial_Selection Serial_Unrolled_Selection Serial_SIMD_Selection Serial_Unrolled_SIMD_Selection Parallel_Selection Parallel_Unrolled_Selection Parallel_SIMD_Selection; do
+cat perftest.log | grep $i | awk '{print $2"\t"$3}' | sed -e 's/(//g' -e 's/)//g' -e 's/ms//g' -e 's/\./,/g' > $i
+done
+
+#Bau aus den Dateien zu jedem Algorithmus (Query) die CSV Datei zusammen
+echo -e "Serial_Selection\t\tSerial_Unrolled_Selection\t\tSerial_SIMD_Selection\t\tSerial_Unrolled_SIMD_Selection\t\tParallel_Selection\t\tParallel_Unrolled_Selection\t\tParallel_SIMD_Selection" > selection_performance_measurement.tsv
+paste Serial_Selection Serial_Unrolled_Selection Serial_SIMD_Selection Serial_Unrolled_SIMD_Selection Parallel_Selection Parallel_Unrolled_Selection Parallel_SIMD_Selection >> selection_performance_measurement.tsv
+#have fun analyzing your data :-)
+exit 0

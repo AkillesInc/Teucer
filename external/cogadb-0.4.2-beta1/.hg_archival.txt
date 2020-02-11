@@ -1,0 +1,5 @@
+repo: a86be942079c581e0ce4098af28f23d3155b0d55
+node: f924862ed868c70649cc43ca3b2bfbd55af51355
+branch: stable
+latesttag: cogadb-0.4.2
+latesttagdistance: 1

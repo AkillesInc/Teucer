@@ -1,0 +1,1028 @@
+
+#include <table.hpp>
+
+#include <query_processor.hpp>
+
+#include <storage_manager.hpp>
+
+
+
+
+
+vector<TablePtr>& getGlobalTableList(){
+
+	static vector<TablePtr> tables;
+	return tables;
+}
+
+
+
+
+
+
+
+
+
+
+void unittest1(){
+
+	TableSchema schema;
+	schema.push_back(Attribut(INT,"SID"));
+	schema.push_back(Attribut(VARCHAR,"Studiengang"));
+	
+	TablePtr tab1(new Table("Studiengänge",schema));
+
+	
+	{Tuple t; t.push_back(1); t.push_back(string("INF"));				tab1->insert(t);}
+	{Tuple t; t.push_back(2); t.push_back(string("CV"));				tab1->insert(t);}
+	{Tuple t; t.push_back(3); t.push_back(string("CSE"));				tab1->insert(t);}
+	{Tuple t; t.push_back(4); t.push_back(string("WIF"));				tab1->insert(t);}
+	{Tuple t; t.push_back(5); t.push_back(string("INF Fernst."));	tab1->insert(t);}
+	{Tuple t; t.push_back(6); t.push_back(string("CV Master")); 	tab1->insert(t);}
+	{Tuple t; t.push_back(7); t.push_back(string("INGINF")); 		tab1->insert(t);}
+	{Tuple t; t.push_back(8); t.push_back(string("Lehramt"));		tab1->insert(t);}
+ 	
+//1 INF
+
+//2 CV
+//4 CSE
+//3 WIF
+//5 INF Fernst.
+//6 CV Master
+//7 INGINF
+//8 Lehramt
+
+	TableSchema schema2;
+	schema2.push_back(Attribut(VARCHAR,"Name"));
+	schema2.push_back(Attribut(INT,"MatrikelNr."));
+	schema2.push_back(Attribut(INT,"SID"));
+	
+	TablePtr tab2(new Table("Studenten",schema2));
+
+	{Tuple t; t.push_back(string("Tom"));			t.push_back(15487); t.push_back(3); tab2->insert(t);}
+	{Tuple t; t.push_back(string("Anja"));			t.push_back(12341); t.push_back(1); tab2->insert(t);}
+	{Tuple t; t.push_back(string("Maria"));		t.push_back(19522); t.push_back(1); tab2->insert(t);}
+	{Tuple t; t.push_back(string("Jan"));			t.push_back(11241); t.push_back(2); tab2->insert(t);}
+	{Tuple t; t.push_back(string("Julia"));		t.push_back(19541); t.push_back(7); tab2->insert(t);}
+	{Tuple t; t.push_back(string("Chris"));		t.push_back(13211); t.push_back(1); tab2->insert(t);}
+	{Tuple t; t.push_back(string("Norbert"));		t.push_back(19422); t.push_back(2); tab2->insert(t);}
+	{Tuple t; t.push_back(string("Maria"));		t.push_back(11875); t.push_back(1); tab2->insert(t);}
+	{Tuple t; t.push_back(string("Marko"));		t.push_back(13487); t.push_back(4); tab2->insert(t);}
+	{Tuple t; t.push_back(string("Ingolf"));		t.push_back(14267); t.push_back(2); tab2->insert(t);}
+	{Tuple t; t.push_back(string("Susanne"));		t.push_back(16755); t.push_back(1); tab2->insert(t);}
+	{Tuple t; t.push_back(string("Stefanie"));	t.push_back(19774); t.push_back(1); tab2->insert(t);}
+	{Tuple t; t.push_back(string("Jan"));			t.push_back(13254); t.push_back(2); tab2->insert(t);}
+	{Tuple t; t.push_back(string("Klaus"));		t.push_back(13324); t.push_back(3); tab2->insert(t);}
+	//{Tuple t; t.push_back(string(""));		t.push_back(); t.push_back(); tab2->insert(t);}
+
+
+	cout << "initial tables: " << endl;
+	tab1->print();
+	tab2->print();
+
+//Name Matr. SID
+//Tom 15487 3
+//Anja 12341 1
+//Maria 19522 1
+//Jan 11241 2
+//Julia 19541 7
+//Chris 13211 1
+//Norbert 19422 2
+//Maria 11875 1
+//Marko 13487 4
+//Ingolf 14267 2
+//Susanne 16755 1
+//Stefanie 19774 1
+//Jan 13254 2
+//Klaus 13324 3
+
+	cout << endl << "Join Table Studenten, Studiengänge where Studenten.SID=Studiengänge.SID ..." << endl;
+
+	tab1->join(tab2,"SID","SID",CPU);
+	TablePtr tab3=tab1->join(tab2,"SID","SID",GPU);
+	tab3->print();
+	
+//		tab3=tab3->sort("MatrikelNr.",ASCENDING);
+//		tab3->print();
+
+		cout << endl << "Projection on Table with Columns Name, Studiengang..." << endl;
+
+		list<string> columns;
+		columns.push_back("Name");
+		columns.push_back("MatrikelNr.");
+		columns.push_back("Studiengang");
+		tab3=tab3->projection(columns,CPU);
+		tab3->print();
+
+		cout << endl << "Sorting Table by Name (ascending)..." << endl;
+
+		tab3=tab3->sort("Name",ASCENDING,CPU);
+		tab3->print();
+
+//		tab3=tab3->sort("MatrikelNr.",ASCENDING,GPU);
+//		tab3->print();
+
+}
+
+
+void unittest2(){
+
+	size_t size_of_main_table=20;//10000;//5;
+	size_t size_of_foreign_key_table=100; //100000; //20;
+
+	srand(0);
+
+	TableSchema schema;
+	schema.push_back(Attribut(INT,"ID"));
+	schema.push_back(Attribut(INT,"Alter"));
+	
+	TablePtr tab1(new Table("Age",schema));
+
+	cout << "Filling Table Age with " << size_of_main_table << " rows" << endl;
+	for(int i=0;i< size_of_main_table;i++)
+	{Tuple t; t.push_back(i); t.push_back(rand()%100); tab1->insert(t);}
+
+	TableSchema schema2;
+	schema2.push_back(Attribut(INT,"EID"));
+	schema2.push_back(Attribut(FLOAT,"Einkommen"));
+
+	TablePtr tab2(new Table("Salary",schema2));
+
+	cout << "Filling Table Salary with " << size_of_foreign_key_table << " rows" << endl;
+
+	for(int i=0;i<size_of_foreign_key_table;i++)
+	{Tuple t; t.push_back(int(rand()%size_of_main_table)); t.push_back(float(rand()%10000)/100); tab2->insert(t);}
+	
+//	tab1->print();
+//	tab2->print();
+
+	TablePtr tab3=tab1->join(tab2,"ID","EID",CPU);
+	tab3->print();
+
+	cout << "perform selection..." << endl;
+	tab3=tab3->selection("Alter",60,GREATER,GPU);
+	tab3->print();
+
+	//TablePtr tab4=tab3->sort("Alter",ASCENDING,CPU);
+	//tab4->print();
+	
+	TablePtr tab4=tab3->sort("Alter",ASCENDING,GPU);
+	tab4->print();
+
+	//TODO: add aggregation and group aggregate
+	//TODO: hash join
+
+//	tab2=tab2->sort("Einkommen",ASCENDING);
+//	tab2->print();
+
+
+}
+
+void 	unittest3(){
+
+	//TPCH Table
+//CREATE TABLE NATION  ( N_NATIONKEY  INTEGER NOT NULL,
+//                            N_NAME       CHAR(25) NOT NULL,
+//                            N_REGIONKEY  INTEGER NOT NULL,
+//                            N_COMMENT    VARCHAR(152));
+
+
+	TableSchema schema;
+	schema.push_back(Attribut(INT,"N_NATIONKEY"));
+	schema.push_back(Attribut(VARCHAR,"N_NAME"));
+	schema.push_back(Attribut(INT,"N_REGIONKEY"));
+	schema.push_back(Attribut(VARCHAR,"N_COMMENT"));
+	
+	TablePtr tab1(new Table("NATION",schema));
+
+	tab1->loadDatafromFile("/home/sebastian/personal.sebastian.bress/benchmarks/tpch/dbgen/tmp/nation.tbl");
+	tab1->print();
+
+//CREATE TABLE REGION  ( R_REGIONKEY  INTEGER NOT NULL,
+//                            R_NAME       CHAR(25) NOT NULL,
+//                            R_COMMENT    VARCHAR(152));
+
+	TableSchema schema2;
+	schema2.push_back(Attribut(INT,"R_REGIONKEY"));
+	schema2.push_back(Attribut(VARCHAR,"R_NAME"));
+	schema2.push_back(Attribut(VARCHAR,"R_COMMENT"));
+	TablePtr tab2(new Table("REGION",schema2));
+
+	tab2->loadDatafromFile("/home/sebastian/personal.sebastian.bress/benchmarks/tpch/dbgen/tmp/region.tbl");
+	tab2->print();
+
+	TablePtr tab3=tab1->join(tab2,"N_REGIONKEY","R_REGIONKEY",CPU);
+	tab3->print();
+
+	list<string> columns;
+	columns.push_back("R_NAME");
+	columns.push_back("N_NAME");
+	tab3=tab3->projection(columns,CPU);
+	tab3->print();
+
+}
+
+void unittest4(){
+
+	{
+	TableSchema schema;
+	schema.push_back(Attribut(INT,"SID"));
+	schema.push_back(Attribut(VARCHAR,"Studiengang"));
+	
+	TablePtr tab1(new Table("Studiengaenge",schema));
+
+	
+	{Tuple t; t.push_back(1); t.push_back(string("INF"));				tab1->insert(t);}
+	{Tuple t; t.push_back(2); t.push_back(string("CV"));				tab1->insert(t);}
+	{Tuple t; t.push_back(3); t.push_back(string("CSE"));				tab1->insert(t);}
+	{Tuple t; t.push_back(4); t.push_back(string("WIF"));				tab1->insert(t);}
+	{Tuple t; t.push_back(5); t.push_back(string("INF Fernst."));	tab1->insert(t);}
+	{Tuple t; t.push_back(6); t.push_back(string("CV Master")); 	tab1->insert(t);}
+	{Tuple t; t.push_back(7); t.push_back(string("INGINF")); 		tab1->insert(t);}
+	{Tuple t; t.push_back(8); t.push_back(string("Lehramt"));		tab1->insert(t);}
+	tab1->print();
+	cout << "storing table..." << endl;
+ 	tab1->store();
+	}
+
+	{
+	TableSchema schema;
+	schema.push_back(Attribut(INT,"SID"));
+	schema.push_back(Attribut(VARCHAR,"Studiengang"));
+	
+	TablePtr tab1(new Table("Studiengaenge",schema));
+	cout << "loading table..." << endl;
+	tab1->load();
+	tab1->print();
+	}
+
+
+}
+
+
+
+//TablePtr loadTable(string table_name){
+//	string path("./data");
+//	cout << "Load table '" << table_name << "' ..." << endl;
+//	cout << "Searching for tables..." << endl;
+//	std::vector<std::string> v = getFilesinDirectory(path);
+//	for(int i=0;i<v.size();i++){
+//		cout << "Found: " << v[i] << endl;
+//		if(table_name==v[i]){
+//			path += "/";
+//			path += table_name;
+//			break;
+//		}
+//		if(i==v.size()-1) {
+//			cout << "Could not find Table: '" << table_name << "' Aborting..." << endl;
+//			exit(-1);
+//		}
+//	}
+//	
+//		Timestamp begin=getTimestamp();
+//	//load table schema
+
+//	   cout << "Loading Table Schema '" << table_name << "' from file '" << path << "'..." << endl;
+//		//string path("data/");
+////		path += "/";
+////		path += name_;
+
+//		TableSchema schema;
+//		
+//		//cout << "Opening File '" << path << "'..." << endl;
+//		ifstream infile (path.c_str(),std::ios_base::binary | std::ios_base::in);
+//		boost::archive::binary_iarchive ia(infile);
+//		ia >> schema;
+//		infile.close();
+
+
+//		TablePtr tab(new Table(table_name,schema)); 
+
+//		tab->load();
+//		
+//	Timestamp end=getTimestamp();
+//	assert(end>=begin);
+//	cout << "Needed " << end-begin << "ns ("<< double(end-begin)/1000000 <<"ms) to load Table '" << table_name <<  "' ..." << endl;
+//	return tab;
+
+//}
+
+//const bool storeTable(TablePtr tab){
+
+//	//store schema
+//	TableSchema schema = tab->getSchema();
+//	string table_name = tab->getName();
+//	
+//	
+//	
+//	
+//		string path("./data");
+//		path += "/";
+//		path += table_name;
+//		cout << "Storing Table schema of Table '" << table_name << "' in File '" << path << "' ..." << endl;
+//		ofstream outfile (path.c_str(),std::ios_base::binary | std::ios_base::out);
+//		boost::archive::binary_oarchive oa(outfile);
+
+//		oa << schema;
+
+//		outfile.flush();
+//		outfile.close();
+//		
+//		//store Table data
+//		return tab->store();
+//		
+//		//return true;
+
+//}
+
+//const bool loadTables(){
+
+//	vector<TablePtr> tables;
+
+//	string path("./data/");
+
+//	cout << "Searching for tables..." << endl;
+//	std::vector<std::string> v = getFilesinDirectory(path);
+//	
+//	for(int i=0;i<v.size();i++){
+//		if(is_regular_file (path+v[i])){
+//			cout << "Loading table '" << v[i] << "' ..." << endl;
+//			tables.push_back(loadTable(v[i]));
+//		}
+//	}
+
+//	cout << "Tables:" << endl;
+//	for(int i=0;i<tables.size();i++){
+//		cout << tables[i]->getName() << endl;
+//		//tables[i]->print();
+//	}
+//	return true;
+//}
+
+void unittest5(){
+
+	{
+	TableSchema schema;
+	schema.push_back(Attribut(INT,"SID"));
+	schema.push_back(Attribut(VARCHAR,"Studiengang"));
+	
+	TablePtr tab1(new Table("Studiengaenge",schema));
+
+	
+	{Tuple t; t.push_back(1); t.push_back(string("INF"));				tab1->insert(t);}
+	{Tuple t; t.push_back(2); t.push_back(string("CV"));				tab1->insert(t);}
+	{Tuple t; t.push_back(3); t.push_back(string("CSE"));				tab1->insert(t);}
+	{Tuple t; t.push_back(4); t.push_back(string("WIF"));				tab1->insert(t);}
+	{Tuple t; t.push_back(5); t.push_back(string("INF Fernst."));	tab1->insert(t);}
+	{Tuple t; t.push_back(6); t.push_back(string("CV Master")); 	tab1->insert(t);}
+	{Tuple t; t.push_back(7); t.push_back(string("INGINF")); 		tab1->insert(t);}
+	{Tuple t; t.push_back(8); t.push_back(string("Lehramt"));		tab1->insert(t);}
+	tab1->print();
+	cout << "storing table..." << endl;
+ 	//tab1->store();
+ 	storeTable(tab1);
+	}
+
+	{
+		cout << "loading table..." << endl;
+		TablePtr tab1=loadTable("Studiengaenge");
+		tab1->print();
+	}
+
+
+}
+
+void 	unittest_Create_TPCH_Database(){
+
+	//TPCH Table
+//CREATE TABLE NATION  ( N_NATIONKEY  INTEGER NOT NULL,
+//                            N_NAME       CHAR(25) NOT NULL,
+//                            N_REGIONKEY  INTEGER NOT NULL,
+//                            N_COMMENT    VARCHAR(152));
+
+	{
+	cout << "Create Table 'NATION' ..." << endl;
+	TableSchema schema;
+	schema.push_back(Attribut(INT,"N_NATIONKEY"));
+	schema.push_back(Attribut(VARCHAR,"N_NAME"));
+	schema.push_back(Attribut(INT,"N_REGIONKEY"));
+	schema.push_back(Attribut(VARCHAR,"N_COMMENT"));
+	
+	TablePtr tab1(new Table("NATION",schema));
+
+	tab1->loadDatafromFile("/home/sebastian/tmp/nation.tbl");
+	//tab1->print();
+	cout << "Store Table 'NATION' ..." << endl;
+	storeTable(tab1);
+
+	}
+
+//CREATE TABLE REGION  ( R_REGIONKEY  INTEGER NOT NULL,
+//                            R_NAME       CHAR(25) NOT NULL,
+//                            R_COMMENT    VARCHAR(152));
+
+	{
+	cout << "Create Table 'REGION' ..." << endl;
+	TableSchema schema2;
+	schema2.push_back(Attribut(INT,"R_REGIONKEY"));
+	schema2.push_back(Attribut(VARCHAR,"R_NAME"));
+	schema2.push_back(Attribut(VARCHAR,"R_COMMENT"));
+	TablePtr tab2(new Table("REGION",schema2));
+
+	tab2->loadDatafromFile("/home/sebastian/tmp/region.tbl");
+	//tab2->print();
+	cout << "Store Table 'REGION' ..." << endl;
+	storeTable(tab2);
+	}
+
+
+/*
+CREATE TABLE part  ( P_PARTKEY     INTEGER NOT NULL,
+                          P_NAME        VARCHAR(55) NOT NULL,
+                          P_MFGR        CHAR(25) NOT NULL,
+                          P_BRAND       CHAR(10) NOT NULL,
+                          P_TYPE        VARCHAR(25) NOT NULL,
+                          P_SIZE        INTEGER NOT NULL,
+                          P_CONTAINER   CHAR(10) NOT NULL,
+                          P_RETAILPRICE DECIMAL(15,2) NOT NULL,
+                          P_COMMENT     VARCHAR(23) NOT NULL )
+engine=brighthouse;
+//*/
+
+
+	{
+	cout << "Create Table 'PART' ..." << endl;
+	TableSchema schema;
+        schema.push_back(Attribut(INT,"P_PARTKEY"));
+        schema.push_back(Attribut(VARCHAR,"P_NAME"));
+        schema.push_back(Attribut(VARCHAR,"P_MFGR"));
+        schema.push_back(Attribut(VARCHAR,"P_BRAND"));
+        schema.push_back(Attribut(VARCHAR,"P_TYPE"));
+        schema.push_back(Attribut(INT,"P_SIZE"));
+        schema.push_back(Attribut(VARCHAR,"P_CONTAINER"));
+        schema.push_back(Attribut(FLOAT,"P_RETAILPRICE"));
+        schema.push_back(Attribut(VARCHAR,"P_COMMENT"));
+
+	TablePtr tab(new Table("PART",schema));
+
+	tab->loadDatafromFile("/home/sebastian/tmp/part.tbl");
+	cout << "Store Table 'PART' ..." << endl;
+	storeTable(tab);
+	}
+
+/*
+CREATE TABLE supplier ( S_SUPPKEY     INTEGER NOT NULL,
+                             S_NAME        CHAR(25) NOT NULL,
+                             S_ADDRESS     VARCHAR(40) NOT NULL,
+                             S_NATIONKEY   INTEGER NOT NULL,
+                             S_PHONE       CHAR(15) NOT NULL,
+                             S_ACCTBAL     DECIMAL(15,2) NOT NULL,
+                             S_COMMENT     VARCHAR(101) NOT NULL)
+engine=brighthouse;
+//*/
+	{
+	cout << "Create Table 'SUPPLIER' ..." << endl;
+	TableSchema schema;
+        schema.push_back(Attribut(INT,"S_SUPPKEY"));
+        schema.push_back(Attribut(VARCHAR,"S_NAME"));
+        schema.push_back(Attribut(VARCHAR,"S_ADDRESS"));
+        schema.push_back(Attribut(INT,"S_NATIONKEY"));
+        schema.push_back(Attribut(VARCHAR,"S_PHONE"));
+        schema.push_back(Attribut(FLOAT,"S_ACCTBAL"));
+        schema.push_back(Attribut(VARCHAR,"S_COMMENT"));
+	TablePtr tab(new Table("SUPPLIER",schema));
+
+	tab->loadDatafromFile("/home/sebastian/tmp/supplier.tbl");
+	cout << "Store Table 'SUPPLIER' ..." << endl;
+	storeTable(tab);
+	}
+
+/*
+CREATE TABLE partsupp ( PS_PARTKEY     INTEGER NOT NULL,
+                             PS_SUPPKEY     INTEGER NOT NULL,
+                             PS_AVAILQTY    INTEGER NOT NULL,
+                             PS_SUPPLYCOST  DECIMAL(15,2)  NOT NULL,
+                             PS_COMMENT     VARCHAR(199) NOT NULL )
+engine=brighthouse;
+//*/
+
+	{
+	cout << "Create Table 'PARTSUPP' ..." << endl;
+	TableSchema schema;
+        schema.push_back(Attribut(INT,"PS_PARTKEY"));
+        schema.push_back(Attribut(INT,"PS_SUPPKEY"));
+        schema.push_back(Attribut(INT,"PS_AVAILQTY"));
+        schema.push_back(Attribut(FLOAT,"PS_SUPPLYCOST"));
+        schema.push_back(Attribut(VARCHAR,"PS_COMMENT"));
+	TablePtr tab(new Table("PARTSUPP",schema));
+
+	tab->loadDatafromFile("/home/sebastian/tmp/partsupp.tbl");
+	cout << "Store Table 'PARTSUPP' ..." << endl;
+	storeTable(tab);
+	}
+/*
+CREATE TABLE customer ( C_CUSTKEY     INTEGER NOT NULL,
+                             C_NAME        VARCHAR(25) NOT NULL,
+                             C_ADDRESS     VARCHAR(40) NOT NULL,
+                             C_NATIONKEY   INTEGER NOT NULL,
+                             C_PHONE       CHAR(15) NOT NULL,
+                             C_ACCTBAL     DECIMAL(15,2)   NOT NULL,
+                             C_MKTSEGMENT  CHAR(10) NOT NULL,
+                             C_COMMENT     VARCHAR(117) NOT NULL)
+engine=brighthouse;
+//*/
+
+	{
+	cout << "Create Table 'CUSTOMER' ..." << endl;
+	TableSchema schema;
+        schema.push_back(Attribut(INT,"C_CUSTKEY"));
+        schema.push_back(Attribut(VARCHAR,"C_NAME"));
+        schema.push_back(Attribut(VARCHAR,"C_ADDRESS"));
+        schema.push_back(Attribut(INT,"C_NATIONKEY"));
+        schema.push_back(Attribut(VARCHAR,"C_PHONE"));
+        schema.push_back(Attribut(FLOAT,"C_ACCTBAL"));
+        schema.push_back(Attribut(VARCHAR,"C_MKTSEGMENT"));
+        schema.push_back(Attribut(VARCHAR,"C_COMMENT"));
+	TablePtr tab(new Table("CUSTOMER",schema));
+
+	tab->loadDatafromFile("/home/sebastian/tmp/customer.tbl");
+	cout << "Store Table 'CUSTOMER' ..." << endl;
+	storeTable(tab);
+	}
+
+/*
+CREATE TABLE orders  ( O_ORDERKEY       INTEGER NOT NULL,
+                           O_CUSTKEY        INTEGER NOT NULL,
+                           O_ORDERSTATUS    CHAR(1) NOT NULL,
+                           O_TOTALPRICE     DECIMAL(15,2) NOT NULL,
+                           O_ORDERDATE      DATE NOT NULL,
+                           O_ORDERPRIORITY  CHAR(15) NOT NULL,  
+                           O_CLERK          CHAR(15) NOT NULL, 
+                           O_SHIPPRIORITY   INTEGER NOT NULL,
+                           O_COMMENT        VARCHAR(79) NOT NULL)
+engine=brighthouse;
+//*/
+
+
+	{
+	cout << "Create Table 'ORDERS' ..." << endl;
+	TableSchema schema;
+        schema.push_back(Attribut(INT,"O_ORDERKEY"));
+        schema.push_back(Attribut(INT,"O_CUSTKEY"));
+        schema.push_back(Attribut(VARCHAR,"O_ORDERSTATUS"));
+        schema.push_back(Attribut(FLOAT,"O_TOTALPRICE"));
+        schema.push_back(Attribut(VARCHAR,"O_ORDERDATE"));
+        schema.push_back(Attribut(VARCHAR,"O_ORDERPRIORITY"));  
+        schema.push_back(Attribut(VARCHAR,"O_CLERK"));
+        schema.push_back(Attribut(INT,"O_SHIPPRIORITY"));
+        schema.push_back(Attribut(VARCHAR,"O_COMMENT"));
+	TablePtr tab(new Table("ORDERS",schema));
+
+	tab->loadDatafromFile("/home/sebastian/tmp/orders.tbl");
+	cout << "Store Table 'ORDERS' ..." << endl;
+	storeTable(tab);
+	}
+
+
+//create table lineitem (
+//l_orderkey    decimal(12,0) not null,
+//l_partkey     decimal(10,0) not null,
+//l_suppkey     decimal(8,0) not null,
+//l_linenumber  decimal(1,0) not null,
+//l_quantity    decimal(2,0) not null,
+//l_extendedprice  decimal(8,2) not null,
+//l_discount    decimal(3,2) not null,
+//l_tax         decimal(3,2) not null,
+//l_returnflag  char(1) not null,
+//l_linestatus  char(1) not null,
+//l_shipdate    date not null,
+//l_commitdate  date not null,
+//l_receiptdate date not null,
+//l_shipinstruct char(25) not null,
+//l_shipmode     char(10) not null,
+//l_comment      varchar(44) not null
+//) TYPE=MyISAM
+
+	{
+	cout << "Create Table 'LINEITEM' ..." << endl;
+	Timestamp begin=getTimestamp();
+	TableSchema schema;
+	schema.push_back(Attribut(INT,"L_ORDERKEY"));//"L_ORDERKEY");   
+	schema.push_back(Attribut(INT,"L_PARTKEY"));//l_partkey);
+	schema.push_back(Attribut(INT,"L_SUPPKEY"));//l_suppkey);
+	schema.push_back(Attribut(INT,"L_LINENUMBER"));//l_linenumber);
+	schema.push_back(Attribut(INT,"L_QUANTITY"));//l_quantity );
+	schema.push_back(Attribut(FLOAT,"L_EXTENDEDPRICE"));//l_extendedprice);
+	schema.push_back(Attribut(FLOAT,"L_DISCOUNT"));//l_discount);
+	schema.push_back(Attribut(FLOAT,"L_TAX"));//l_tax);
+	schema.push_back(Attribut(VARCHAR,"L_RETURNFLAG"));//l_returnflag);
+	schema.push_back(Attribut(VARCHAR,"L_LINESTATUS"));//l_linestatus );
+	schema.push_back(Attribut(VARCHAR,"L_SHIPDATE"));//l_shipdate);
+	schema.push_back(Attribut(VARCHAR,"L_COMMITDATE"));//l_commitdate);
+	schema.push_back(Attribut(VARCHAR,"L_RECEIPTDATE"));//l_receiptdate);
+	schema.push_back(Attribut(VARCHAR,"L_SHIPINSTRUCT"));//l_shipinstruct);
+	schema.push_back(Attribut(VARCHAR,"L_SHIPMODE"));//l_shipmode);
+	schema.push_back(Attribut(VARCHAR,"L_COMMENT"));//l_comment);
+
+
+	TablePtr tab(new Table("LINEITEM",schema));
+
+	tab->loadDatafromFile("/home/sebastian/tmp/lineitem.tbl");
+	Timestamp end=getTimestamp();
+	assert(end>=begin);
+	cout << "Needed " << end-begin << "ns for import..." << endl;
+	//tab->print();
+	cout << "Store Table 'LINEITEM' ..." << endl;
+	storeTable(tab);
+	}
+
+}
+
+typedef std::pair<TablePtr,std::tr1::shared_ptr<std::vector<TID> > > LookupColumn;
+typedef std::tr1::shared_ptr<LookupColumn> LookupColumnPtr;
+//typedef std::vector<LookupColumnPtr> LookupTable;
+//typedef std::tr1::shared_ptr<LookupTable> LookupTablePtr;
+
+
+template <typename T>
+class ViewColumn : public Column<T>{
+	public:
+
+	ViewColumn(const LookupColumnPtr& ptr, const string& name, const AttributeType& type) : Column<T>(name, type), lookup_col_ptr_(ptr) {
+		orig_col_ptr_=ptr->first->getColumnbyName(this->column_name);
+		assert(orig_col_ptr_!=NULL);
+	}
+
+	virtual const bool isMaterialized() const{
+		return false;
+	}
+
+
+	//wrap here all methods of all operations, at each method end, aggregate Lookup Tables together and return the new LookupTable or return materilized result
+
+
+
+
+
+
+	protected:
+ 		virtual const T& operator[] (TID tid) const{
+			//T t = (*orig_col_ptr_)[tid];
+
+			return T();//(*orig_col_ptr_)[(*lookup_col_ptr_)[tid]];		
+		}
+	//TablePtr	original_;
+	LookupColumnPtr lookup_col_ptr_;
+
+	ColumnPtr orig_col_ptr_;
+	//std::sting name_;
+};
+
+
+class LookupTable : public Table{
+
+
+	private:
+	std::vector<LookupColumnPtr> lookup_columns;
+};
+
+
+int main(){
+
+	int err = check_for_CUDA_devices();
+	if(err==0){
+		cout << "Detected suitable GPU for coprocessing..." << endl;
+		cout << "Number of Multiprocessors: " << getNumberofGPUMultiprocessors() << endl;
+	}else{
+		cout << "No suitable GPU for coprocessing detected, using CPU emulation..." << endl;
+	}
+
+	//unittest1();
+
+
+
+	query_test();
+	return 0;
+/*
+	{
+	TableSchema schema;
+	schema.push_back(Attribut(INT,"Money"));
+	schema.push_back(Attribut(VARCHAR,"Customer"));
+	
+	TablePtr tab1(new Table("PAYMENTS",schema));
+
+	
+	{Tuple t; t.push_back(100); t.push_back(string("Smith"));				tab1->insert(t);}
+	{Tuple t; t.push_back(300); t.push_back(string("Scott"));				tab1->insert(t);}
+	{Tuple t; t.push_back(50); t.push_back(string("Smith"));				tab1->insert(t);}
+	{Tuple t; t.push_back(10); t.push_back(string("Mike"));				tab1->insert(t);}
+	{Tuple t; t.push_back(100); t.push_back(string("Scott"));	tab1->insert(t);}
+	{Tuple t; t.push_back(20); t.push_back(string("Smith")); 	tab1->insert(t);}
+	{Tuple t; t.push_back(480); t.push_back(string("Mike")); 		tab1->insert(t);}
+	{Tuple t; t.push_back(30); t.push_back(string("Jack"));		tab1->insert(t);}
+	tab1->print();
+	tab1=tab1->groupby(string("Customer"),string("Money"),SUM,CPU);
+	tab1->print();
+	}
+
+	*/
+
+
+
+	
+//	{
+//		cout << "Testing GPU Join" << endl;
+//		std::vector<int> column1;
+//		std::vector<int> column2;
+
+//		for(int i=0;i<10;i++) column1.push_back(i);
+//		for(int i=0;i<20;i++) column2.push_back(rand()%10);
+
+//		std::vector<std::pair<unsigned int,unsigned int> > result = gpu_join_tids(column1, column2);
+
+//			for(int i=0;i<result.size();i++){
+//				cout << result[i].first << "," << result[i].second << " (real values: " << column1[result[i].first] << "," << column2[result[i].second] << ")"<< endl;
+//			}
+//		cout << "Ended Test of GPU Join" << endl;
+
+//	}
+	
+
+
+
+
+
+
+
+	//unittest1();
+
+	//unittest2();
+
+	//unittest3();
+
+	//unittest4();
+
+   //unittest_Create_TPCH_Database();
+
+	//loadTables();
+
+	//unittest5();
+
+//loadTables();
+
+	/*
+	{
+	cout << "data" << endl;
+	vector<int> v;
+	for(int i=0;i<100;i++) v.push_back(rand()%100);
+	for(int i=0;i<v.size();i++) cout << i << ". " <<  v[i] << endl;
+ 	vector<unsigned int> v2=gpu_selection_tids(v, 76,EQUAL);
+	cout << "processed data (equal)" << endl;
+	for(int i=0;i<v2.size();i++) cout << v2[i] << ". " << v[v2[i]] << endl;
+
+	v2=gpu_selection_tids(v, 76,LESSER);
+	cout << "processed data (lesser)" << endl;
+	for(int i=0;i<v2.size();i++) cout << v2[i] << ". " << v[v2[i]] << endl;
+
+	v2=gpu_selection_tids(v, 76,GREATER);
+	cout << "processed data (greater)" << endl;
+	for(int i=0;i<v2.size();i++) cout << v2[i] << ". " << v[v2[i]] << endl;
+	}
+
+	{
+	cout << "data" << endl;
+	vector<float> v;
+	for(int i=0;i<100;i++) v.push_back(float(rand()%10000)/100);
+	for(int i=0;i<v.size();i++) cout << i << ". " <<  v[i] << endl;
+ 	vector<unsigned int> v2=gpu_selection_tids(v, float(76),EQUAL);
+	cout << "processed data (equal)" << endl;
+	for(int i=0;i<v2.size();i++) cout << v2[i] << ". " << v[v2[i]] << endl;
+
+	v2=gpu_selection_tids(v, float(76),LESSER);
+	cout << "processed data (lesser)" << endl;
+	for(int i=0;i<v2.size();i++) cout << v2[i] << ". " << v[v2[i]] << endl;
+
+	v2=gpu_selection_tids(v, float(76),GREATER);
+	cout << "processed data (greater)" << endl;
+	for(int i=0;i<v2.size();i++) cout << v2[i] << ". " << v[v2[i]] << endl;
+	}
+
+	*/
+
+	/*
+	vector<int> v;
+	for(int i=0;i<100;i++) v.push_back(rand()%100);
+
+	for(int i=0;i<100;i++) cout << v[i] << endl;;
+
+	cout << "save File..." << endl << endl;
+	storeColumn(v);
+
+	cout << "load File..." << endl << endl;
+	v=loadColumn();
+
+	for(int i=0;i<v.size();i++) cout << v[i] << endl;;
+	*/
+
+	
+	/*
+	{
+	vector<TID> ids;
+	for(unsigned int i=0;i<100;i++)ids.push_back(random()%200);
+
+	ids=gpu_sort(ids);
+
+	for(int i=0;i<100;i++) cout << ids[i] << "," << endl;
+	}
+	cout << "TIDs" << endl;
+
+	{
+	vector<float> ids2;
+	for(unsigned int i=0;i<100;i++){ids2.push_back(float(random()%200)/100);
+		cout << float(random()%200)/100 << "," << endl;}
+	ids2=gpu_sort(ids2);
+
+	for(int i=0;i<100;i++) cout << ids2[i] << "," << endl;
+	}
+	cout << "floats" << endl;
+	*/	
+
+	/*
+	TableSchema schema;
+	schema.push_back(Attribut(INT,"ID"));
+	schema.push_back(Attribut(VARCHAR,"NAME"));
+	schema.push_back(Attribut(VARCHAR,"VORNAME"));
+
+	TablePtr tab1(new Table(schema));
+
+
+	TableSchema schema2;
+	schema2.push_back(Attribut(INT,"ID"));
+	schema2.push_back(Attribut(VARCHAR,"CITY"));
+	schema2.push_back(Attribut(VARCHAR,"STREET"));
+	schema2.push_back(Attribut(INT,"HOUSE NUMBER"));
+
+	TablePtr tab2(new Table(schema2));
+
+	{
+	Tuple t;
+	t.push_back(1);
+	t.push_back(string("Sebastian"));
+	t.push_back(string("Breß"));	
+	tab1->insert(t);
+	}
+
+	{
+	Tuple t;
+	t.push_back(2);
+	t.push_back(string("Thomas"));
+	t.push_back(string("Thüm"));	
+	tab1->insert(t);
+	}
+
+	{
+	Tuple t;
+	t.push_back(3);
+	t.push_back(string("Brötchen"));
+	t.push_back(string("Thomas"));	
+	tab1->insert(t);
+	}
+
+	{
+	Tuple t;
+	t.push_back(2);
+	t.push_back(string("Magdeburg"));
+	t.push_back(string("Straße Wo Thomas wohnt"));
+	t.push_back(5);	
+	tab2->insert(t);
+	}
+
+	{
+	Tuple t;
+	t.push_back(1);
+	t.push_back(string("Quedlinburg"));
+	t.push_back(string("Marslebener Weg"));
+	t.push_back(26);	
+	tab2->insert(t);
+	}
+
+	{
+	Tuple t;
+	t.push_back(3);
+	t.push_back(string("Entenhausen"));
+	t.push_back(string("Schafstraße"));
+	t.push_back(14);	
+	tab2->insert(t);
+	}
+
+
+	tab1->print();
+	tab2->print();
+
+	TablePtr tab3=tab1->join(tab2,"ID","ID");
+	tab3->print();
+
+		TablePtr tab4=tab2->sort(string("HOUSE NUMBER"),ASCENDING);
+		tab4->print();
+
+//	tab3=tab1->join(tab2,"NAME","CITY");
+//	tab3->print();
+
+
+	{
+
+	TableSchema schema;
+	schema.push_back(Attribut(VARCHAR,"VORNAME"));
+	schema.push_back(Attribut(VARCHAR,"NAME"));
+
+	
+
+	//Väter
+	TableSchema schema2;
+	schema2.push_back(Attribut(VARCHAR,"VATER_NAME"));
+	schema2.push_back(Attribut(VARCHAR,"KIND_NAME"));
+
+	TablePtr tab1(new Table(schema));
+	TablePtr tab2(new Table(schema2));
+
+		{
+		Tuple t;
+		t.push_back(string("Sebastian"));
+		t.push_back(string("Breß"));	
+		tab1->insert(t);
+		}
+		{
+		Tuple t;
+		t.push_back(string("Thomas"));
+		t.push_back(string("Thüm"));	
+		tab1->insert(t);
+		}
+		{
+		Tuple t;
+		t.push_back(string("Maik"));
+		t.push_back(string("Mory"));	
+		tab1->insert(t);
+		}
+
+		{
+		Tuple t;
+		t.push_back(string("Mory"));
+		t.push_back(string("Baby von Maik"));	
+		tab2->insert(t);
+		}
+		{
+		Tuple t;
+		t.push_back(string("Mory"));
+		t.push_back(string("kleiner Junge"));	
+		tab2->insert(t);
+		}
+		{
+		Tuple t;
+		t.push_back(string("Thüm"));
+		t.push_back(string("Baby von Thomas"));	
+		tab2->insert(t);
+		}	
+
+		cout << endl << endl << "Second Unit Test" << endl;
+
+		tab1->print();
+		tab2->print();
+
+
+
+		cout << "JOIN:" << endl;
+
+		tab3=tab1->join(tab2,"NAME","VATER_NAME");
+		tab3->print();
+		
+		list<string> columns;
+		columns.push_back("VORNAME");
+		columns.push_back("KIND_NAME");
+		tab3=tab3->projection(columns);
+		tab3->print();
+
+		tab3=tab3->selection("VORNAME",string("Maik"),EQUAL);
+		tab3->print();
+
+
+		
+
+	}
+
+
+		cout << "Exiting.." << endl;
+
+		*/
+
+//	 Column<int> col_int("myint");
+//	 Column<string> col_varchar("mychar");
+
+//	 int i = col_int.get(0);
+//	 
+//	 string s = col_varchar.get(0);
+
+//    col_int.update(0,5);
+//    col_varchar.update(0,"lol");
+
+ //return 0;
+}
