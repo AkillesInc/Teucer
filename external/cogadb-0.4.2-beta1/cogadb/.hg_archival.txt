@@ -1,5 +1,0 @@
-repo: a3ad691cbdeacba30ec0acda282a0cc790a27fa9
-node: a6a41ffa6a0e1b646d8e8325b273616ddbe8f64e
-branch: cpp_query_compilation
-latesttag: cogadb-0.4.2
-latesttagdistance: 12

@@ -1,5 +1,0 @@
-repo: 69f3f2d2d96b0fe74d6432841faade350491ce20
-node: c0cb56e564a282b5c34fcc41b5016ac75d5461a0
-branch: development
-latesttag: cogadb-0.4.2
-latesttagdistance: 1

@@ -1,1 +1,0 @@
-create table ssb_q22 (D_YEAR INT, P_BRAND VARCHAR, LO_REVENUE FLOAT);

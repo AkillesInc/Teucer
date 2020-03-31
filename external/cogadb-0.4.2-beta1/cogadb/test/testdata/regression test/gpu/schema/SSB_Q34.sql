@@ -1,1 +1,0 @@
-create table ssb_q34_t (C_CITY VARCHAR, S_CITY VARCHAR, D_YEAR INT, LO_REVENUE FLOAT);
